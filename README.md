@@ -1,5 +1,5 @@
-##**Ariolimon**
-A go web application to query Amazon web services Metrics and visually warn if configured thresholds are exceeded.
+##**Ariolimon Nagios Plugin**
+Working on a plug in tool for AWS
 
 ###**Please note this program is under active development**###
 
@@ -12,7 +12,7 @@ Clone this repo inside your $GOPATH.
 
 Change the thresh2.json file to suit your needs.
 
-Run ```go build ``` and execute ```./adev```
+Run ```go build ``` and execute ```./aws_nrpe```
 
 Open a web browser and navigate to localhost:8082
 
