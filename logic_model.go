@@ -5,13 +5,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"log"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const debug int = 0
+const debug int = 1
 
 var svc *cloudwatch.CloudWatch
 var svc_ec2 *ec2.EC2
@@ -139,7 +141,7 @@ func (mq *MetricQuery) getStatistics(timeframe string) error {
 			Units: unit,
 			Time:  float64(dp.Timestamp.Unix()),
 		}
-		data.compareThresh(mq.Warning, mq.Critical)
+		// fix		data.compareThresh(mq.Warning, mq.Critical)
 		mq.Results = append(mq.Results, data)
 	}
 
@@ -153,42 +155,59 @@ func (mq *MetricQuery) getStatistics(timeframe string) error {
 
 // function to compare threshold with query values and return html ready warning
 
-func (qr *QueryResult) compareThresh(warn, crit string) {
-	// adjust for transform
-	value := qr.Value // make a copy
+func checkerr(e error) {
+	if e != nil {
+		panic(e)
+		log.Fatalf("error: %v", e)
+	}
+}
+func compareThresh(val float64, thresh string) bool {
 
-	if qr.Units == "MB" {
-		value = value * 1048576.0
-	}
-	if qr.Units == "KB" {
-		value = value * 1024.0
-	}
+	thresh = strings.Replace(thresh, "~", "", -1)
+	r1, _ := regexp.Compile("^[0-9]+(\\.[0-9]+)?$")                     //match range 10
+	r2, _ := regexp.Compile("^[0-9]+(\\.[0-9]+)?:$")                    //match range 10:
+	r3, _ := regexp.Compile("^:[0-9]+(\\.[0-9]+)?$")                    //match range :10
+	r4, _ := regexp.Compile("^[0-9]+(\\.[0-9]+)?:[0-9]+(\\.[0-9]+)?$")  //match range 20:10
+	r5, _ := regexp.Compile("^@[0-9]+(\\.[0-9]+)?:[0-9]+(\\.[0-9]+)?$") //match range @20:10
 
-	var minwarn float64 = 0.0
-	var maxwarn float64 = 100.0
-	var mincrit float64 = 0.0
-	var maxcrit float64 = 100.0
-	warnings := strings.Split(warn, ":")
-	if len(warnings) < 2 {
-		minwarn = 0
-		maxwarn, _ = strconv.ParseFloat(warnings[0], 64)
-	} else {
-		minwarn, _ = strconv.ParseFloat(warnings[0], 64)
-		maxwarn, _ = strconv.ParseFloat(warnings[1], 64)
-	}
-	criticals := strings.Split(crit, ":")
-	if len(criticals) < 2 {
-		mincrit = 0.0
-		maxcrit, _ = strconv.ParseFloat(criticals[0], 64)
-	} else {
-		mincrit, _ = strconv.ParseFloat(criticals[0], 64)
-		maxcrit, _ = strconv.ParseFloat(criticals[1], 64)
-	}
-	qr.Alert = "success"
-	if value > maxcrit || value < mincrit {
-		qr.Alert = "danger"
-	} else if value > maxwarn || value < minwarn {
-		qr.Alert = "warning"
-	}
+	if r1.MatchString(thresh) {
+		x, err := strconv.ParseFloat(thresh, 64)
+		checkerr(err)
+		if val < 0 || val > x {
+			return true
+		}
+	} else if r2.MatchString(thresh) {
+		x, err := strconv.ParseFloat(thresh[:len(thresh)-1], 64)
+		checkerr(err)
+		if val < x {
+			return true
+		}
+	} else if r3.MatchString(thresh) {
+		x, err := strconv.ParseFloat(thresh[1:], 64)
+		checkerr(err)
+		if val > x {
+			return true
+		}
+	} else if r4.MatchString(thresh) {
+		values := strings.Split(thresh, ":")
+		x, err := strconv.ParseFloat(values[0], 64)
+		checkerr(err)
+		y, err := strconv.ParseFloat(values[1], 64)
+		checkerr(err)
 
+		if val < x || val > y {
+			return true
+		}
+	} else if r5.MatchString(thresh) {
+		values := strings.Split(thresh, ":")
+		x, err := strconv.ParseFloat(values[0][1:], 64)
+		checkerr(err)
+		y, err := strconv.ParseFloat(values[1], 64)
+		checkerr(err)
+
+		if val >= x && val <= y {
+			return true
+		}
+	}
+	return false
 }
