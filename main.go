@@ -61,6 +61,16 @@ func main() {
 			log.Printf("Error with getStatistics: %s", err)
 
 		}
+
+		fmt.Printf("Name : %s\n", hosts[i].Name)
+		fmt.Printf("Host : %s\n", hosts[i].Host)
+
+		fmt.Printf("Critical : %s\n", hosts[i].Critical)
+		fmt.Printf("Warning : %s\n", hosts[i].Warning)
+		for _, result := range hosts[i].Results {
+			fmt.Printf("Value: %f\n", result.Value)
+			fmt.Printf("Alert: %s\n", result.Alert)
+		}
 	}
 	if debug == 1 {
 		fmt.Println()

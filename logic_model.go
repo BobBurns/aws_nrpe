@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const debug int = 1
+const debug int = 0
 
 var svc *cloudwatch.CloudWatch
 var svc_ec2 *ec2.EC2
@@ -106,7 +106,7 @@ func (mq *MetricQuery) getStatistics(timeframe string) error {
 			Value: 0.0,
 			Units: "Unknown",
 			Time:  float64(time.Now().Unix()),
-			Alert: "info",
+			Alert: "Unknown",
 		}
 		mq.Results = append(mq.Results, data)
 		return nil
@@ -136,10 +136,18 @@ func (mq *MetricQuery) getStatistics(timeframe string) error {
 				unit = "KB"
 			}
 		}
+
 		data := QueryResult{
 			Value: value,
 			Units: unit,
 			Time:  float64(dp.Timestamp.Unix()),
+		}
+		if test := compareThresh(value, mq.Critical); test {
+			data.Alert = "Critical"
+		} else if test = compareThresh(value, mq.Warning); test {
+			data.Alert = "Warning"
+		} else {
+			data.Alert = "OK"
 		}
 		// fix		data.compareThresh(mq.Warning, mq.Critical)
 		mq.Results = append(mq.Results, data)
